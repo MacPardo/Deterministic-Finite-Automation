@@ -2,18 +2,19 @@ import qualified Data.List.Split as Split
 import qualified Data.List as List
 import qualified Data.Set as S
 import qualified Data.Map as M
+import qualified Control.Applicative as Ap
 
 data Symbol = TerminalSymbol Literal
             | NonTerminalSymbol State
-            deriving (Show, Eq)
+            deriving (Show, Eq, Ord)
 
 data State = State String
            | Error
-           deriving (Show, Eq)
+           deriving (Show, Eq, Ord)
 
 data Literal = Literal Char
              | Epsilon
-             deriving (Show, Eq)
+             deriving (Show, Eq, Ord)
 
 type Rule = (State, [Symbol])
 
@@ -56,11 +57,26 @@ stringToSymbol _ = undefined
 isRule :: String -> Bool
 isRule = (" ::= " `List.isInfixOf`)
 
-stringToRules :: String -> [Rule]
-stringToRules s = map (((,)ruleHeadState) . map stringToSymbol . separateSymbols) rulesBodies
+stringToRules :: String -> S.Set Rule
+stringToRules s = S.fromList $
+                  map (((,) ruleHeadState) .
+                       map stringToSymbol .
+                       separateSymbols)
+                  rulesBodies
   where ruleHeadState = case stringToSymbol ruleHead of
                           (NonTerminalSymbol a) -> a
         rulesBodies = Split.splitOn " | " ruleBody
         ruleBody = splitArray !! 1
         ruleHead = splitArray !! 0
         splitArray = Split.splitOn " ::= " s
+
+tokenStringToRules :: String -> S.Set Rule
+tokenStringToRules s = S.fromList $ Ap.getZipList $ (,) <$>
+                       z rules <*>
+                       z ((Ap.getZipList $ (\a b -> [a,b]) <$>
+                                   z (init symbols) <*>
+                                   z (map NonTerminalSymbol $ tail rules))
+                           ++ [[last symbols]])
+  where symbols = map stringToSymbol $ separateSymbols s
+        rules = map (State . ('_':) . show) [1..]
+        z = Ap.ZipList
