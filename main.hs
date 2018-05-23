@@ -19,8 +19,7 @@ data Literal = Literal Char
              deriving (Show, Eq, Ord)
 
 type Rule = (State, [Symbol])
-type NDR  = (State, S.Set [Symbol]) --NonDeterministic Rule
-type NDA  = M.Map State (M.Map Literal (S.Set State)) --NonDeterministic Automation
+type DFA  = M.Map State (M.Map Literal State) --Deterministic Finite Automation
 type Grammar  = M.Map State (S.Set [Symbol])
 
 splitAfter :: (Eq a) => a -> [a] -> [[a]]
@@ -96,9 +95,13 @@ mergeUniqueRules rs = S.unions $ gz $ f <$> z prefixes <*> z rs
         z = Ap.ZipList
         gz = Ap.getZipList
 
-makeGrammar :: S.Set Rule -> Grammar
+--makeGrammar :: S.Set Rule -> Grammar
 makeGrammar ruleSet = S.foldr' f M.empty ruleSet
-  where f r acc = undefined
+  where f (state, symbols) acc = M.insert state newSymbols acc
+          where newSymbols = case ms of
+                               Nothing -> S.singleton symbols
+                               Just s  -> s `S.union` (S.singleton symbols)
+                ms = M.lookup state acc
 
 main :: IO ()
 main = do
@@ -118,6 +121,16 @@ main = do
     putStrLn tr
     putStrLn "</tokenRule>\n\n\n"
   --let tokenRules = map Split.splitOn "\n" tokenDefinitions
-  let tokenRules = mergeUniqueRules $ map (S.unions . map stringToRules . Split.splitOn "\n") tokenDefinitions
+  let tokenRules = mergeUniqueRules $
+                   map (S.unions .
+                        map stringToRules .
+                        Split.splitOn "\n")
+                   tokenDefinitions
+  putStrLn "<==========TOKEN RULES=================>"
   putStrLn $ show tokenRules
+  putStrLn "////////////////////////////////////////\n"
+  let fullGrammar = makeGrammar tokenRules
+  putStrLn "<===========FULL GRAMMAR===============>"
+  putStrLn $ show fullGrammar
+  putStrLn "////////////////////////////////////////"
   return ()
