@@ -11,6 +11,7 @@ data Symbol = TerminalSymbol Literal
             deriving (Show, Eq, Ord)
 
 data State = State String
+           | FinalState String
            | Error
            deriving (Show, Eq, Ord)
 
@@ -95,13 +96,15 @@ mergeUniqueRules rs = S.unions $ gz $ f <$> z prefixes <*> z rs
         z = Ap.ZipList
         gz = Ap.getZipList
 
---makeGrammar :: S.Set Rule -> Grammar
+makeGrammar :: S.Set Rule -> Grammar
 makeGrammar ruleSet = S.foldr' f M.empty ruleSet
   where f (state, symbols) acc = M.insert state newSymbols acc
           where newSymbols = case ms of
                                Nothing -> S.singleton symbols
                                Just s  -> s `S.union` (S.singleton symbols)
                 ms = M.lookup state acc
+
+grammarToDFA grammar = undefined
 
 main :: IO ()
 main = do
