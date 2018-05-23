@@ -89,7 +89,9 @@ tokenStringToRules s = S.fromList $ Ap.getZipList $
 mergeUniqueRules :: [S.Set Rule] -> S.Set Rule
 mergeUniqueRules rs = S.unions $ gz $ f <$> z prefixes <*> z rs
   where f p ruleSet = S.map g ruleSet
-          where g (State s, a) = (State $ p ++ s, a)
+          where prefixBody (NonTerminalSymbol (State stateName)) = NonTerminalSymbol $ State $ p ++ stateName
+                prefixBody symbol = symbol
+                g (State s, a) = (State $ p ++ s, map prefixBody a)
         prefixes = map ((++"_") . show) [1..]
         z = Ap.ZipList
         gz = Ap.getZipList
