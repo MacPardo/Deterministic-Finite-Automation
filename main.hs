@@ -1,8 +1,10 @@
 import qualified Data.List.Split as Split
 import qualified Data.List as List
 import qualified Data.Set as S
-import qualified Data.Map as M
+import qualified Data.Map.Strict as M
 import qualified Control.Applicative as Ap
+import System.Environment (getArgs)
+import Control.Monad (forM_)
 
 data Symbol = TerminalSymbol Literal
             | NonTerminalSymbol State
@@ -17,6 +19,9 @@ data Literal = Literal Char
              deriving (Show, Eq, Ord)
 
 type Rule = (State, [Symbol])
+type NDR  = (State, S.Set [Symbol]) --NonDeterministic Rule
+type NDA  = M.Map State (M.Map Literal (S.Set State)) --NonDeterministic Automation
+type Grammar  = M.Map State (S.Set [Symbol])
 
 splitAfter :: (Eq a) => a -> [a] -> [[a]]
 splitAfter _ [] = []
@@ -54,8 +59,8 @@ stringToSymbol (a:ys@(b:c:xs))
                                  init ys
 stringToSymbol _ = undefined
 
-isRule :: String -> Bool
-isRule = (" ::= " `List.isInfixOf`)
+stringIsRule :: String -> Bool
+stringIsRule = (" ::= " `List.isInfixOf`)
 
 stringToRules :: String -> S.Set Rule
 stringToRules s = S.fromList $
@@ -71,12 +76,46 @@ stringToRules s = S.fromList $
         splitArray = Split.splitOn " ::= " s
 
 tokenStringToRules :: String -> S.Set Rule
-tokenStringToRules s = S.fromList $ Ap.getZipList $ (,) <$>
-                       z rules <*>
-                       z ((Ap.getZipList $ (\a b -> [a,b]) <$>
-                                   z (init symbols) <*>
-                                   z (map NonTerminalSymbol $ tail rules))
-                           ++ [[last symbols]])
-  where symbols = map stringToSymbol $ separateSymbols s
+tokenStringToRules s = S.fromList $ Ap.getZipList $
+                       (,) <$> z rules <*> z bodies
+  where bodies = (Ap.getZipList $ (\a b -> [a,b]) <$>
+                   z (init symbols) <*>
+                   z (map NonTerminalSymbol $ tail rules))
+                 ++ [[last symbols]]
+        symbols = map stringToSymbol $ separateSymbols s
         rules = map (State . ('_':) . show) [1..]
         z = Ap.ZipList
+
+mergeUniqueRules :: [S.Set Rule] -> S.Set Rule
+mergeUniqueRules rs = S.unions $ gz $ f <$> z prefixes <*> z rs
+  where f p ruleSet = S.map g ruleSet
+          where g (State s, a) = (State $ p ++ s, a)
+        prefixes = map ((++"_") . show) [1..]
+        z = Ap.ZipList
+        gz = Ap.getZipList
+
+makeGrammar :: S.Set Rule -> Grammar
+makeGrammar ruleSet = S.foldr' f M.empty ruleSet
+  where f r acc = undefined
+
+main :: IO ()
+main = do
+  putStrLn "hello there!"
+  args <- getArgs
+  let inputFile  = args !! 0
+  let outputFile = args !! 1
+  putStrLn $ "input file: " ++ inputFile
+  putStrLn $ "output file: " ++ outputFile
+  inputText <- readFile inputFile
+  putStrLn "=======File contents below========="
+  putStrLn inputText
+  putStrLn "======Displayed file contents======"
+  let tokenDefinitions = filter (not . null) $ Split.splitOn "\n\n" inputText
+  forM_ tokenDefinitions $ \tr -> do
+    putStrLn "<tokenRule>"
+    putStrLn tr
+    putStrLn "</tokenRule>\n\n\n"
+  --let tokenRules = map Split.splitOn "\n" tokenDefinitions
+  let tokenRules = mergeUniqueRules $ map (S.unions . map stringToRules . Split.splitOn "\n") tokenDefinitions
+  putStrLn $ show tokenRules
+  return ()
