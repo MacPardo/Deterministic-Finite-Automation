@@ -6,25 +6,6 @@ import qualified Control.Applicative as Ap
 import System.Environment (getArgs)
 import Control.Monad (forM_)
 
-{-
-data Symbol = TerminalSymbol Literal
-            | NonTerminalSymbol State
-            deriving (Show, Eq, Ord)
-
-data State = State String
-           | FinalState String
-           | Error
-           deriving (Show, Eq, Ord)
-
-data Literal = Literal Char
-             | Epsilon
-             deriving (Show, Eq, Ord)
-
-type Rule = (State, [Symbol])
-type DFA  = M.Map State (M.Map Literal State) --Deterministic Finite Automation
-type Grammar  = M.Map State (S.Set [Symbol])
--}
-
 data TerminalSymbol = TerminalSymbol Char
                     | Epsilon
                     deriving (Show, Eq, Ord)
@@ -97,23 +78,23 @@ tokenStringToRules s = S.fromList $ Ap.getZipList $
         rules = map show [1..]
         z = Ap.ZipList
 
---mergeUniqueRules :: [S.Set Rule] -> S.Set (State, [Either TerminalSymbol State])
+mergeUniqueRules :: [S.Set Rule] -> S.Set (State, [Either TerminalSymbol State])
 mergeUniqueRules rs = S.unions $ gz $ f <$> z [1..] <*> z rs
   where f p ruleSet = S.map g ruleSet
           where prefixBody (Right nts) = Right $ State (nts, p, False)
-                prefixBody ts = Left ts
+                prefixBody (Left ts) = Left ts
                 g (ts, a) = (State (ts, p, False), map prefixBody a)
         z = Ap.ZipList
         gz = Ap.getZipList
 
-{-makeGrammar :: S.Set Rule -> Grammar
-makeGrammar ruleSet = S.foldr' f M.empty ruleSet
+mapFromTupleSet :: (Ord t, Ord k) => S.Set (t, k) -> M.Map t (S.Set k)
+mapFromTupleSet ruleSet = S.foldr' f M.empty ruleSet
   where f (state, symbols) acc = M.insert state newSymbols acc
           where newSymbols = case ms of
                                Nothing -> S.singleton symbols
                                Just s  -> s `S.union` (S.singleton symbols)
                 ms = M.lookup state acc
--}
+
 grammarToDFA grammar = undefined
 
 main :: IO ()
@@ -133,17 +114,16 @@ main = do
     putStrLn "<tokenRule>"
     putStrLn tr
     putStrLn "</tokenRule>\n\n\n"
-  --let tokenRules = map Split.splitOn "\n" tokenDefinitions
-{-  let tokenRules = mergeUniqueRules $
+  let tokenRules = mergeUniqueRules $
                    map (S.unions .
                         map stringToRules .
                         Split.splitOn "\n")
                    tokenDefinitions
   putStrLn "<==========TOKEN RULES=================>"
-  putStrLn $ show tokenRules
+  forM_ tokenRules $ \tr -> do
+    putStrLn "<TR>"
+    putStrLn $ show tr
+    putStrLn "</TR>\n\n"
   putStrLn "////////////////////////////////////////\n"
-  let fullGrammar = makeGrammar tokenRules
-  putStrLn "<===========FULL GRAMMAR===============>"
-  putStrLn $ show fullGrammar
-  putStrLn "////////////////////////////////////////"
-  return ()-}
+  let stateMap = mapFromTupleSet tokenRules
+  putStrLn $ show stateMap
