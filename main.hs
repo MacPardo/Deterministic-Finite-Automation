@@ -99,10 +99,10 @@ mapFromTupleSet ruleSet = S.foldr' f M.empty ruleSet
 
 makeNDFA :: M.Map State (S.Set [Either TerminalSymbol State]) -> NDFA
 makeNDFA m = M.map (mapFromTupleSet . S.fromList) . M.mapWithKey ((\k l -> map (f k) l)) . M.map S.toList $ m
-  where f (State (s, n, qf)) (Left a:[])         = (a      , FinalState n)
-        f key (Left a:Right b:[]) = (a      , b)
-        f key (Right b:[])        = (Epsilon, b)
-        f _   _                   = error "invalid rule in makeNDFA"
+  where f (State (s, n, qf)) (Left a:[]) = (a      , FinalState n)
+        f key (Left a:Right b:[])        = (a      , b)
+        f key (Right b:[])               = (Epsilon, b)
+        f _   _ = error "invalid rule in makeNDFA"
 
 main :: IO ()
 main = do
