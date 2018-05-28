@@ -20,6 +20,8 @@ data State = State (String, Int, Bool)
 
 type NDFA = M.Map State (M.Map TerminalSymbol (S.Set State))
 
+epsilonRepresentation = "_E_"
+
 splitAfter :: (Eq a) => a -> [a] -> [[a]]
 splitAfter _ [] = []
 splitAfter c s = case dropWhile (/= c) s of
@@ -98,11 +100,49 @@ mapFromTupleSet ruleSet = S.foldr' f M.empty ruleSet
                 ms = M.lookup state acc
 
 makeNDFA :: M.Map State (S.Set [Either TerminalSymbol State]) -> NDFA
-makeNDFA m = M.map (mapFromTupleSet . S.fromList) . M.mapWithKey ((\k l -> map (f k) l)) . M.map S.toList $ m
+makeNDFA m = M.map (mapFromTupleSet . S.fromList) .
+             M.mapWithKey ((\k l -> map (f k) l)) .
+             M.map S.toList $
+             m
   where f (State (s, n, qf)) (Left a:[]) = (a      , FinalState n)
         f key (Left a:Right b:[])        = (a      , b)
         f key (Right b:[])               = (Epsilon, b)
         f _   _ = error "invalid rule in makeNDFA"
+
+htmlBeforeTable :: String
+htmlBeforeTable = "<!DOCTYPE html><html><head>" ++
+                  "<style>" ++
+                  "td,th {border: 1px solid black;} table {border-collapse: collapse;} "++
+                  "* {font-family: sans-serif} td:first-child, th {font-weight: bold}"++
+                  "</style>" ++
+                  "</head><body>"
+
+htmlAfterTable :: String
+htmlAfterTable = "</body></html>"
+
+ndfa2htmlTable :: NDFA -> String
+ndfa2htmlTable ndfa = htmlBeforeTable ++ "<table>\n\n" ++ thead ++ (concat trs) ++ "</table>" ++ htmlAfterTable
+  where states    = M.keys ndfa
+        terminals = S.toList $
+                    M.foldr' (\a acc -> (M.keysSet a) `S.union` acc) S.empty ndfa
+        thead = "<thead>" ++
+                "<th>NDFA</th>" ++
+                (concat $
+                  map (("<th>"++) .
+                       (++"</th>") .
+                       terminalSymbol2string)
+                  terminals) ++
+                "</thead>"
+        trs = map (\s -> "<tr><td>" ++ (state2string s) ++ "</td>" ++ (show $ getTds s) ++ "</tr>") states
+        getTds s = map (\t -> "<td>" ++ (show $ M.lookup s ndfa >>= (\m -> M.lookup t m)) ++ "</td>") terminals
+
+state2string :: State -> String
+state2string (State s) = show s
+state2string s = show s
+
+terminalSymbol2string :: TerminalSymbol -> String
+terminalSymbol2string Epsilon = epsilonRepresentation
+terminalSymbol2string (TerminalSymbol t) = t:[]
 
 main :: IO ()
 main = do
@@ -134,3 +174,10 @@ main = do
   putStrLn "////////////////////////////////////////\n"
   let stateMap = mapFromTupleSet tokenRules
   putStrLn $ show stateMap
+  let ndfa = makeNDFA stateMap
+  putStrLn "NDFA below"
+  putStrLn $ show ndfa
+  let table = ndfa2htmlTable ndfa
+  putStrLn "table below"
+  putStrLn table
+  writeFile outputFile table
