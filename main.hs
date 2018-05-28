@@ -18,6 +18,8 @@ data State = State (String, Int, Bool)
            | ErrorState
            deriving (Show, Eq, Ord)
 
+type NDFA = M.Map State (M.Map TerminalSymbol (S.Set State))
+
 splitAfter :: (Eq a) => a -> [a] -> [[a]]
 splitAfter _ [] = []
 splitAfter c s = case dropWhile (/= c) s of
@@ -95,7 +97,12 @@ mapFromTupleSet ruleSet = S.foldr' f M.empty ruleSet
                                Just s  -> s `S.union` (S.singleton symbols)
                 ms = M.lookup state acc
 
-grammarToDFA grammar = undefined
+makeNDFA :: M.Map State (S.Set [Either TerminalSymbol State]) -> NDFA
+makeNDFA m = M.map (mapFromTupleSet . S.fromList) . M.mapWithKey ((\k l -> map (f k) l)) . M.map S.toList $ m
+  where f (State (s, n, qf)) (Left a:[])         = (a      , FinalState n)
+        f key (Left a:Right b:[]) = (a      , b)
+        f key (Right b:[])        = (Epsilon, b)
+        f _   _                   = error "invalid rule in makeNDFA"
 
 main :: IO ()
 main = do
