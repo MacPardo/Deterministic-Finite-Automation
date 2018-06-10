@@ -109,6 +109,24 @@ makeNDFA m = M.map (mapFromTupleSet . S.fromList) .
         f key (Right b:[])               = (Epsilon, b)
         f _   _ = error "invalid rule in makeNDFA"
 
+hasEpsilonTransitions :: NDFA -> Bool
+hasEpsilonTransitions = M.foldr aux False
+  where aux _ True  = True
+        aux m False = case M.lookup Epsilon m >>=
+                           (\s -> Just $ S.null s) of
+                        Nothing -> False
+                        Just  a -> a
+
+
+removeEpsilonTransitions :: NDFA -> NDFA
+removeEpsilonTransitions a
+  |hasEpsilonTransitions a = M.map f a
+  |otherwise = a
+--  where f b = let et = 
+  where f = undefined
+               
+
+
 htmlBeforeTable :: String
 htmlBeforeTable = "<!DOCTYPE html><html><head>" ++
                   "<style>" ++
@@ -121,7 +139,7 @@ htmlAfterTable :: String
 htmlAfterTable = "</body></html>"
 
 ndfa2htmlTable :: NDFA -> String
-ndfa2htmlTable ndfa = htmlBeforeTable ++ "<table>\n\n" ++ thead ++ (concat trs) ++ "</table>" ++ htmlAfterTable
+ndfa2htmlTable ndfa = "<table>\n\n" ++ thead ++ (concat trs) ++ "</table>"
   where states    = M.keys ndfa
         terminals = S.toList $
                     M.foldr' (\a acc -> (M.keysSet a) `S.union` acc) S.empty ndfa
@@ -144,12 +162,15 @@ terminalSymbol2string :: TerminalSymbol -> String
 terminalSymbol2string Epsilon = epsilonRepresentation
 terminalSymbol2string (TerminalSymbol t) = t:[]
 
+
+
 main :: IO ()
 main = do
   putStrLn "hello there!"
   args <- getArgs
   let inputFile  = args !! 0
   let outputFile = args !! 1
+  let htmlTemplate = args !! 2
   putStrLn $ "input file: " ++ inputFile
   putStrLn $ "output file: " ++ outputFile
   inputText <- readFile inputFile
