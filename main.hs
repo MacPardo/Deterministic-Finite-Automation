@@ -19,6 +19,10 @@ data State = State (String, Int, Bool)
            deriving (Show, Eq, Ord)
 
 type NDFA = M.Map State (M.Map TerminalSymbol (S.Set State))
+type DFA =  M.Map (S.Set State) (M.Map TerminalSymbol (S.Set State))
+{-
+No DFA um conjunto de estados é tratado como se fosse um estado só
+-}
 
 epsilonRepresentation = "_E_"
 
@@ -125,34 +129,8 @@ removeEpsilonTransitions a
 --  where f b = let et = 
   where f = undefined
                
-
-
-htmlBeforeTable :: String
-htmlBeforeTable = "<!DOCTYPE html><html><head>" ++
-                  "<style>" ++
-                  "td,th {border: 1px solid black;} table {border-collapse: collapse;} "++
-                  "* {font-family: sans-serif} td:first-child, th {font-weight: bold}"++
-                  "</style>" ++
-                  "</head><body>"
-
-htmlAfterTable :: String
-htmlAfterTable = "</body></html>"
-
-ndfa2htmlTable :: NDFA -> String
-ndfa2htmlTable ndfa = "<table>\n\n" ++ thead ++ (concat trs) ++ "</table>"
-  where states    = M.keys ndfa
-        terminals = S.toList $
-                    M.foldr' (\a acc -> (M.keysSet a) `S.union` acc) S.empty ndfa
-        thead = "<thead>" ++
-                "<th>NDFA</th>" ++
-                (concat $
-                  map (("<th>"++) .
-                       (++"</th>") .
-                       terminalSymbol2string)
-                  terminals) ++
-                "</thead>"
-        trs = map (\s -> "<tr><td>" ++ (state2string s) ++ "</td>" ++ (show $ getTds s) ++ "</tr>") states
-        getTds s = map (\t -> "<td>" ++ (show $ M.lookup s ndfa >>= (\m -> M.lookup t m)) ++ "</td>") terminals
+--determinize :: NDFA -> DFA
+determinize a = a
 
 state2string :: State -> String
 state2string (State s) = show s
@@ -170,7 +148,6 @@ main = do
   args <- getArgs
   let inputFile  = args !! 0
   let outputFile = args !! 1
-  let htmlTemplate = args !! 2
   putStrLn $ "input file: " ++ inputFile
   putStrLn $ "output file: " ++ outputFile
   inputText <- readFile inputFile
@@ -182,12 +159,19 @@ main = do
     putStrLn "<tokenRule>"
     putStrLn tr
     putStrLn "</tokenRule>\n\n\n"
-  let tokenRules = mergeUniqueRules $
+{-  let tokenRules = mergeUniqueRules $
                    map (S.unions .
+                        map stringToRules .
+                        Split.splitOn "\n")
+                   tokenDefinitions-}
+  let tokenRules = map (S.unions .
                         map stringToRules .
                         Split.splitOn "\n")
                    tokenDefinitions
   putStrLn "<==========TOKEN RULES=================>"
+  putStrLn $ show tokenRules
+  putStrLn "adfasdfasdfadsfasdfasdf"
+  {-
   forM_ tokenRules $ \tr -> do
     putStrLn "<TR>"
     putStrLn $ show tr
@@ -198,7 +182,8 @@ main = do
   let ndfa = makeNDFA stateMap
   putStrLn "NDFA below"
   putStrLn $ show ndfa
-  let table = ndfa2htmlTable ndfa
-  putStrLn "table below"
-  putStrLn table
-  writeFile outputFile table
+
+  let dfa  = determinize ndfa
+  putStrLn "DFA below"
+  putStrLn $ show dfa
+-}
