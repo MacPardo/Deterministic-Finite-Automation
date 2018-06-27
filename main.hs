@@ -25,6 +25,15 @@ type DFA =  M.Map (S.Set State) (M.Map TerminalSymbol (S.Set State))
 No DFA um conjunto de estados é tratado como se fosse um estado só
 -}
 
+class (Show a) => Jsonable a where
+  json :: a -> String
+
+instance (Show a) => Jsonable (S.Set a) where
+  json s = "[" ++ (List.intercalate "," . map show . S.toList $ s) ++ "]"
+
+instance (Show k, Show v) => Jsonable (M.Map k v) where
+  json s = "{" ++ (List.intercalate "," . map (\(k, v) -> "\"" ++ (show k) ++ "\"" ++ ":" ++ "\"" ++ (show v) ++ "\"") $ M.assocs s) ++ "}"
+
 epsilonRepresentation = "_E_"
 
 splitAfter :: (Eq a) => a -> [a] -> [[a]]
