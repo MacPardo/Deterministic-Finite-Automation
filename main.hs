@@ -145,21 +145,7 @@ determinize a = let stateSets = concat $ map M.elems $ M.elems a
   in test
 
   where f set = S.map fromJust $ S.filter isJust $ S.map aux set
-        aux state = M.lookup state a {->>=
-                    (\map -> Just $ M.assocs map) >>=
-                    (\assocs -> Just $ S.fromList assocs) >>=
-                    (\tupleSet -> Just $ mapFromTupleSet tupleSet) >>=
-                    (\map -> Just $ M.map (S.unions . S.toList) map)-}
-
-state2string :: State -> String
-state2string (State s) = show s
-state2string s = show s
-
-terminalSymbol2string :: TerminalSymbol -> String
-terminalSymbol2string Epsilon = epsilonRepresentation
-terminalSymbol2string (TerminalSymbol t) = t:[]
-
-
+        aux state = M.lookup state a
 
 main :: IO ()
 main = do
