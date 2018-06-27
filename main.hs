@@ -5,6 +5,7 @@ import qualified Data.Map.Strict as M
 import qualified Control.Applicative as Ap
 import System.Environment (getArgs)
 import Control.Monad (forM_)
+import Data.Maybe (isJust, fromJust)
 
 data TerminalSymbol = TerminalSymbol Char
                     | Epsilon
@@ -129,8 +130,26 @@ removeEpsilonTransitions a
 --  where f b = let et = 
   where f = undefined
                
+
+mapOfSetsUnions :: (Ord a, Ord b) => [M.Map a (S.Set b)] -> M.Map a (S.Set b)
+mapOfSetsUnions a = foldr f M.empty a 
+  where f m acc = M.union (M.mapWithKey mergeValues acc) m
+          where mergeValues k v
+                  |isJust mRules = S.union (fromJust mRules) v
+                  |otherwise = v
+                  where mRules = M.lookup k m
+  
 --determinize :: NDFA -> DFA
-determinize a = a
+determinize a = let stateSets = concat $ map M.elems $ M.elems a
+                    test = map f stateSets
+  in test
+
+  where f set = S.map fromJust $ S.filter isJust $ S.map aux set
+        aux state = M.lookup state a >>=
+                    (\map -> Just $ M.assocs map) >>=
+                    (\assocs -> Just $ S.fromList assocs) >>=
+                    (\tupleSet -> Just $ mapFromTupleSet tupleSet) >>=
+                    (\map -> Just $ M.map (S.unions . S.toList) map)
 
 state2string :: State -> String
 state2string (State s) = show s
@@ -164,14 +183,13 @@ main = do
                         map stringToRules .
                         Split.splitOn "\n")
                    tokenDefinitions-}
-  let tokenRules = map (S.unions .
+  let tokenRules = mergeUniqueRules $ map (S.unions .
                         map stringToRules .
                         Split.splitOn "\n")
                    tokenDefinitions
   putStrLn "<==========TOKEN RULES=================>"
   putStrLn $ show tokenRules
   putStrLn "adfasdfasdfadsfasdfasdf"
-  {-
   forM_ tokenRules $ \tr -> do
     putStrLn "<TR>"
     putStrLn $ show tr
@@ -186,4 +204,3 @@ main = do
   let dfa  = determinize ndfa
   putStrLn "DFA below"
   putStrLn $ show dfa
--}
