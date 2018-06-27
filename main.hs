@@ -139,17 +139,17 @@ mapOfSetsUnions a = foldr f M.empty a
                   |otherwise = v
                   where mRules = M.lookup k m
   
---determinize :: NDFA -> DFA
+determinize :: NDFA -> DFA
 determinize a = let stateSets = concat $ map M.elems $ M.elems a
-                    test = map f stateSets
+                    test = M.fromAscList $  map (\set -> (set, mapOfSetsUnions . S.toList . f $ set)) stateSets
   in test
 
   where f set = S.map fromJust $ S.filter isJust $ S.map aux set
-        aux state = M.lookup state a >>=
+        aux state = M.lookup state a {->>=
                     (\map -> Just $ M.assocs map) >>=
                     (\assocs -> Just $ S.fromList assocs) >>=
                     (\tupleSet -> Just $ mapFromTupleSet tupleSet) >>=
-                    (\map -> Just $ M.map (S.unions . S.toList) map)
+                    (\map -> Just $ M.map (S.unions . S.toList) map)-}
 
 state2string :: State -> String
 state2string (State s) = show s
