@@ -9,7 +9,7 @@ import Data.Maybe (isJust, fromJust)
 
 data TerminalSymbol = TerminalSymbol Char
                     | Epsilon
-                    deriving (Show, Eq, Ord)
+                    deriving (Eq, Ord)
 type NonTerminalSymbol = String
 type Symbol = Either TerminalSymbol NonTerminalSymbol
 type Rule = (NonTerminalSymbol, [Symbol])
@@ -17,7 +17,18 @@ type Rule = (NonTerminalSymbol, [Symbol])
 data State = State (String, Int, Bool)
            | FinalState Int
            | ErrorState
-           deriving (Show, Eq, Ord)
+           deriving (Eq, Ord)
+
+instance Show TerminalSymbol where
+  show (TerminalSymbol c) = [c]
+  show Epsilon = epsilonRepresentation
+
+instance Show State where
+  show ErrorState = "ERROR"
+  show (FinalState n) = "F" ++ (show n)
+  show (State (s, n, b)) = f ++ "(" ++ s ++ "," ++ (show n) ++ ")"
+    where f | b         = "*"
+            | otherwise = ""
 
 type NDFA = M.Map State (M.Map TerminalSymbol (S.Set State))
 type DFA =  M.Map (S.Set State) (M.Map TerminalSymbol (S.Set State))
@@ -27,13 +38,21 @@ No DFA um conjunto de estados é tratado como se fosse um estado só
 
 class (Show a) => Jsonable a where
   json :: a -> String
+  json = show
 
 instance (Show a) => Jsonable (S.Set a) where
   json s = "[" ++ (List.intercalate "," . map show . S.toList $ s) ++ "]"
 
-instance (Show k, Show v) => Jsonable (M.Map k v) where
-  json s = "{" ++ (List.intercalate "," . map (\(k, v) -> "\"" ++ (show k) ++ "\"" ++ ":" ++ "\"" ++ (show v) ++ "\"") $ M.assocs s) ++ "}"
+instance (Jsonable k, Show v) => Jsonable (M.Map k v) where
+  json s = "{" ++ (List.intercalate "," . map (\(k, v) -> "\"" ++ (json k) ++ "\"" ++ ":" ++ "\"" ++ (show v) ++ "\"") $ M.assocs s) ++ "}"
 
+instance Jsonable TerminalSymbol where
+  json = show
+
+jsonDFA :: DFA -> String
+jsonDFA a = json $ M.map f a
+  where f = json . M.map json
+  
 epsilonRepresentation = "_E_"
 
 splitAfter :: (Eq a) => a -> [a] -> [[a]]
@@ -198,4 +217,4 @@ main = do
 
   let dfa  = determinize ndfa
   putStrLn "DFA below"
-  putStrLn $ show dfa
+  putStrLn $ jsonDFA dfa
