@@ -25,8 +25,8 @@ instance Show TerminalSymbol where
 
 instance Show State where
   show ErrorState = "ERROR"
-  show (FinalState n) = "F" ++ (show n)
-  show (State (s, n, b)) = f ++ "(" ++ s ++ "," ++ (show n) ++ ")"
+  show (FinalState n) = "'*" ++ (show n) ++ "'"
+  show (State (s, n, b)) = "'" ++ f ++ "(" ++ s ++ "," ++ (show n) ++ ")" ++ "'"
     where f | b         = "*"
             | otherwise = ""
 
@@ -36,22 +36,23 @@ type DFA =  M.Map (S.Set State) (M.Map TerminalSymbol (S.Set State))
 No DFA um conjunto de estados é tratado como se fosse um estado só
 -}
 
-class (Show a) => Jsonable a where
-  json :: a -> String
-  json = show
+setJson :: S.Set String -> String
+setJson s = "[" ++ (List.intercalate "," . S.toList $ s) ++ "]"
 
-instance (Show a) => Jsonable (S.Set a) where
-  json s = "[" ++ (List.intercalate "," . map show . S.toList $ s) ++ "]"
+mapJson :: M.Map String String -> String
+mapJson m = "{" ++
+  (List.intercalate "," . map (\(k, v) -> k ++ ":" ++ v) $ M.assocs m)
+  ++ "}"
 
-instance (Jsonable k, Show v) => Jsonable (M.Map k v) where
-  json s = "{" ++ (List.intercalate "," . map (\(k, v) -> "\"" ++ (json k) ++ "\"" ++ ":" ++ "\"" ++ (show v) ++ "\"") $ M.assocs s) ++ "}"
+quotes :: String -> String
+quotes s = "\"" ++ s ++ "\""
 
-instance Jsonable TerminalSymbol where
-  json = show
+--mapDfa :: DFA -> String
+dfaJson a = mapJson . M.map g . M.mapKeys (quotes . f) $ a
+  where f k = setJson . S.map show $ k
+        g v = mapJson . M.map h . M.mapKeys (quotes . show) $ v
+        h s = quotes . setJson . S.map show $ s
 
-jsonDFA :: DFA -> String
-jsonDFA a = json $ M.map f a
-  where f = json . M.map json
   
 epsilonRepresentation = "_E_"
 
@@ -217,4 +218,4 @@ main = do
 
   let dfa  = determinize ndfa
   putStrLn "DFA below"
-  putStrLn $ jsonDFA dfa
+  putStrLn $ dfaJson dfa
