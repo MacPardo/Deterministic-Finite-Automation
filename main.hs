@@ -193,11 +193,6 @@ main = do
     putStrLn "<tokenRule>"
     putStrLn tr
     putStrLn "</tokenRule>\n\n\n"
-{-  let tokenRules = mergeUniqueRules $
-                   map (S.unions .
-                        map stringToRules .
-                        Split.splitOn "\n")
-                   tokenDefinitions-}
   let tokenRules = mergeUniqueRules $ map (S.unions .
                         map stringToRules .
                         Split.splitOn "\n")
