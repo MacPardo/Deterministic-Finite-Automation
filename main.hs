@@ -84,7 +84,9 @@ separateSymbols = filter (not . null) .
                   splitAfter '>'
 
 stringToSymbol :: String -> Symbol
-stringToSymbol (x:[]) = Left $ TerminalSymbol x
+stringToSymbol (x:[])
+  | x == epsilonRepresentation = Left $ Epsilon
+  | otherwise = Left $ TerminalSymbol x
 stringToSymbol (a:ys@(b:c:xs))
   | a == '<' && last ys == '>' = Right $ init ys
 stringToSymbol _ = undefined
@@ -131,7 +133,7 @@ e chama a grammarLineToRules ou tokenStringToRules
 -}
 stringToRules :: String -> S.Set Rule
 stringToRules s
-  | " ::= " `List.isInfixOf` s = grammarLineToRules s
+  | stringIsRule s = grammarLineToRules s
   | otherwise = tokenStringToRules s
   
 mergeUniqueRules :: [S.Set Rule] -> S.Set (State, [Either TerminalSymbol State])
