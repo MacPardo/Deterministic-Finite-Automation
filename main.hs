@@ -21,7 +21,7 @@ data State = State (String, Int, Bool)
 
 instance Show TerminalSymbol where
   show (TerminalSymbol c) = [c]
-  show Epsilon = epsilonRepresentation
+  show Epsilon = [epsilonRepresentation]
 
 instance Show State where
   show ErrorState = "ERROR"
@@ -54,7 +54,7 @@ dfaJson a = mapJson . M.map g . M.mapKeys (quotes . f) $ a
         h s = quotes . setJson . S.map show $ s
 
   
-epsilonRepresentation = "_E_"
+epsilonRepresentation = '&'
 
 splitAfter :: (Eq a) => a -> [a] -> [[a]]
 splitAfter _ [] = []
@@ -92,8 +92,12 @@ stringToSymbol _ = undefined
 stringIsRule :: String -> Bool
 stringIsRule = (" ::= " `List.isInfixOf`)
 
-stringToRules :: String -> S.Set Rule
-stringToRules s = S.fromList $
+{-
+transforma a linha de uma gramatica em
+um conjunto de regras
+-}
+grammarLineToRules :: String -> S.Set Rule
+grammarLineToRules s = S.fromList $
                   map (((,) ruleHeadState) .
                        map stringToSymbol .
                        separateSymbols)
@@ -104,7 +108,11 @@ stringToRules s = S.fromList $
         ruleBody = splitArray !! 1
         ruleHead = splitArray !! 0
         splitArray = Split.splitOn " ::= " s
-
+ 
+{-
+recebe um token, gera a sua gramatica e
+retorna o conjunto de regras
+-}
 tokenStringToRules :: String -> S.Set Rule
 tokenStringToRules s = S.fromList $ Ap.getZipList $
                        (,) <$> z rules <*> z bodies
@@ -116,6 +124,16 @@ tokenStringToRules s = S.fromList $ Ap.getZipList $
         rules = map show [1..]
         z = Ap.ZipList
 
+ 
+{-
+verfica se a entrada eh um token ou a linha de uma gramatica,
+e chama a grammarLineToRules ou tokenStringToRules
+-}
+stringToRules :: String -> S.Set Rule
+stringToRules s
+  | " ::= " `List.isInfixOf` s = grammarLineToRules s
+  | otherwise = tokenStringToRules s
+  
 mergeUniqueRules :: [S.Set Rule] -> S.Set (State, [Either TerminalSymbol State])
 mergeUniqueRules rs = S.unions $ gz $ f <$> z [1..] <*> z rs
   where f p ruleSet = S.map g ruleSet
