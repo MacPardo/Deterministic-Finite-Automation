@@ -47,6 +47,11 @@ mapJson m = "{" ++
 quotes :: String -> String
 quotes s = "\"" ++ s ++ "\""
 
+ndfaJson :: NDFA -> String
+ndfaJson a = mapJson . M.map g . M.mapKeys (quotes . show) $ a
+  where g v = mapJson . M.map h . M.mapKeys (quotes . show) $ v
+        h s = quotes . setJson . S.map show $ s
+
 dfaJson :: DFA -> String
 dfaJson a = mapJson . M.map g . M.mapKeys (quotes . f) $ a
   where f k = setJson . S.map show $ k
@@ -229,7 +234,7 @@ main = do
   putStrLn $ show stateMap
   let ndfa = makeNDFA stateMap
   putStrLn "NDFA below"
-  putStrLn $ show ndfa
+  putStrLn $ ndfaJson ndfa
 
   let dfa  = determinize ndfa
   putStrLn "DFA below"
