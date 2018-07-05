@@ -47,7 +47,7 @@ mapJson m = "{" ++
 quotes :: String -> String
 quotes s = "\"" ++ s ++ "\""
 
---mapDfa :: DFA -> String
+dfaJson :: DFA -> String
 dfaJson a = mapJson . M.map g . M.mapKeys (quotes . f) $ a
   where f k = setJson . S.map show $ k
         g v = mapJson . M.map h . M.mapKeys (quotes . show) $ v
