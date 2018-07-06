@@ -227,13 +227,6 @@ determinize a = let stateSets = concat $ map M.elems $ M.elems a
         aux state = M.lookup state a
 
 
---initialStates :: DFA -> S.Set State
---initialStates a = S.filter
---                  (\s -> case s of
---                           (InitialState n) -> True
---                           _ -> False)
---                  (dfaStates a)
-
 initialStates :: DFA -> S.Set (S.Set State)
 initialStates = S.fromList . filter dfaIsStateInitial . M.keys
 
@@ -249,7 +242,18 @@ direto dos estados iniciais
 --removeUnreachables :: DFA -> DFA
 --removeUnreachables a = S.map (f S.empty) (initialStates a)
 --  where f ok state = let states = M.lookup state a
---          in undefined
+--                         dfa s ok' = 
+--          in S.foldr dfa ok states
+
+
+{-retorna o feixo transitivo de um estado-}
+dfaStateClojure :: DFA -> S.Set (S.Set State) -> S.Set State -> S.Set (S.Set State)
+dfaStateClojure a ok s = case directClojure >>= (\clj -> Just $ S.foldr f ok' clj) of
+                           (Just a) -> a
+                           Nothing  -> S.empty
+  where ok' = s `S.insert` ok
+        directClojure = M.lookup s a >>= (\m -> Just $ (S.fromList . M.elems $ m) `S.difference` ok')
+        f state acc = acc `S.union` (dfaStateClojure a acc state)
 
 main :: IO ()
 main = do
