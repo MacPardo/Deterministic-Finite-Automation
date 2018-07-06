@@ -14,7 +14,10 @@ type NonTerminalSymbol = String
 type Symbol = Either TerminalSymbol NonTerminalSymbol
 type Rule = (NonTerminalSymbol, [Symbol])
 
-data State = State (String, Int, Bool)
+
+
+-- State (nome, idGramatica, estadoFinal?, estadoInicial?)
+data State = State (String, Int, Bool, Bool)
            | FinalState Int
            | ErrorState
            deriving (Eq, Ord)
@@ -26,8 +29,10 @@ instance Show TerminalSymbol where
 instance Show State where
   show ErrorState = "ERROR"
   show (FinalState n) = "'*" ++ (show n) ++ "'"
-  show (State (s, n, b)) = "'" ++ f ++ "(" ++ s ++ "," ++ (show n) ++ ")" ++ "'"
+  show (State (s, n, b, i)) = "'" ++ k ++ f ++ "(" ++ s ++ "," ++ (show n) ++ ")" ++ "'"
     where f | b         = "*"
+            | otherwise = ""
+          k | i = "$"
             | otherwise = ""
 
 type NDFA = M.Map State (M.Map TerminalSymbol (S.Set State))
@@ -140,13 +145,16 @@ stringToRules :: String -> S.Set Rule
 stringToRules s
   | stringIsRule s = grammarLineToRules s
   | otherwise = tokenStringToRules s
+
+isInitial :: String -> Bool
+isInitial = ("$" `List.isInfixOf`)
   
 mergeUniqueRules :: [S.Set Rule] -> S.Set (State, [Either TerminalSymbol State])
 mergeUniqueRules rs = S.unions $ gz $ f <$> z [1..] <*> z rs
   where f p ruleSet = S.map g ruleSet
-          where prefixBody (Right nts) = Right $ State (nts, p, False)
+          where prefixBody (Right nts) = Right $ State (nts, p, False, isInitial nts)
                 prefixBody (Left ts) = Left ts
-                g (ts, a) = (State (ts, p, False), map prefixBody a)
+                g (ts, a) = (State (ts, p, False, isInitial ts), map prefixBody a)
         z = Ap.ZipList
         gz = Ap.getZipList
 
@@ -163,7 +171,7 @@ makeNDFA m = M.map (mapFromTupleSet . S.fromList) .
              M.mapWithKey ((\k l -> map (f k) l)) .
              M.map S.toList $
              m
-  where f (State (s, n, qf)) (Left a:[]) = (a      , FinalState n)
+  where f (State (s, n, qf, initial)) (Left a:[]) = (a      , FinalState n)
         f key (Left a:Right b:[])        = (a      , b)
         f key (Right b:[])               = (Epsilon, b)
         f _   _ = error "invalid rule in makeNDFA"
@@ -212,6 +220,10 @@ determinize a = let stateSets = concat $ map M.elems $ M.elems a
   where f set = S.map fromJust $ S.filter isJust $ S.map aux set
         aux state = M.lookup state a
 
+
+removeUnreachables :: DFA -> DFA
+removeUnreachables a = a
+  
 main :: IO ()
 main = do
   args <- getArgs
