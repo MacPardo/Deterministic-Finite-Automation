@@ -227,13 +227,29 @@ determinize a = let stateSets = concat $ map M.elems $ M.elems a
         aux state = M.lookup state a
 
 
+--initialStates :: DFA -> S.Set State
+--initialStates a = S.filter
+--                  (\s -> case s of
+--                           (InitialState n) -> True
+--                           _ -> False)
+--                  (dfaStates a)
+
+initialStates :: DFA -> S.Set (S.Set State)
+initialStates = S.fromList . filter dfaIsStateInitial . M.keys
+
+dfaIsStateInitial :: S.Set State -> Bool
+dfaIsStateInitial = any f . S.toList
+  where f (InitialState _) = True
+        f _ = False
+
+{-
+remove todos os estados que não pertencem ao feixo transitivo
+direto dos estados iniciais
+-}
 --removeUnreachables :: DFA -> DFA
-removeUnreachables a = a
-  where initialStates = S.filter
-                        (\s -> case s of
-                            (InitialState n) -> True
-                            _ -> False)
-                        (dfaStates a)
+--removeUnreachables a = S.map (f S.empty) (initialStates a)
+--  where f ok state = let states = M.lookup state a
+--          in undefined
 
 main :: IO ()
 main = do
