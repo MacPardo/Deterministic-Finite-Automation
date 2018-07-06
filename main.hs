@@ -214,42 +214,25 @@ determinize a = let stateSets = concat $ map M.elems $ M.elems a
 
 main :: IO ()
 main = do
-  putStrLn "hello there!"
   args <- getArgs
   let inputFile  = args !! 0
   let outputFile = args !! 1
   putStrLn $ "input file: " ++ inputFile
-  putStrLn $ "output file: " ++ outputFile
+  putStrLn $ "output file: " ++ outputFile ++ "\n\n"
   inputText <- readFile inputFile
-  putStrLn "=======File contents below========="
-  putStrLn inputText
-  putStrLn "======Displayed file contents======"
   let tokenDefinitions = filter (not . null) $ Split.splitOn "\n\n" inputText
-  forM_ tokenDefinitions $ \tr -> do
-    putStrLn "<tokenRule>"
-    putStrLn tr
-    putStrLn "</tokenRule>\n\n\n"
   let tokenRules = mergeUniqueRules $ map (S.unions .
                         map stringToRules .
                         Split.splitOn "\n")
                    tokenDefinitions
-  putStrLn "<==========TOKEN RULES=================>"
-  putStrLn $ show tokenRules
-  putStrLn "adfasdfasdfadsfasdfasdf"
-  forM_ tokenRules $ \tr -> do
-    putStrLn "<TR>"
-    putStrLn $ show tr
-    putStrLn "</TR>\n\n"
-  putStrLn "////////////////////////////////////////\n"
   let stateMap = mapFromTupleSet tokenRules
-  putStrLn $ show stateMap
   let ndfa = makeNDFA stateMap
   putStrLn "NDFA below"
   putStrLn $ ndfaJson ndfa
 
   let dfa  = determinize ndfa
-  putStrLn "DFA below"
+  putStrLn "\nDFA below"
   putStrLn $ dfaJson dfa
 
-  putStrLn "\n\n\n DFA with error states"
+  putStrLn "\nDFA with error states"
   putStrLn $ dfaJson $ addErrorState dfa
