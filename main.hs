@@ -226,6 +226,11 @@ determinize a = let stateSets = (concat $ map M.elems $ M.elems a) ++ (ndfaIniti
   where f set = S.map fromJust $ S.filter isJust $ S.map aux set
         aux state = M.lookup state a
 
+missingStates :: DFA -> S.Set (S.Set State)
+missingStates a = transitionStates `S.difference` lineStates
+  where lineStates = S.fromList $ M.keys a
+        transitionStates = S.fromList . concat . map (M.elems) . M.elems $ a
+
 ndfaInitialStatesSingletons :: NDFA -> [S.Set State]
 ndfaInitialStatesSingletons = map S.singleton . filter f . M.keys
   where f (InitialState _) = True
