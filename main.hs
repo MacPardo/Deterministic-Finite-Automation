@@ -248,13 +248,13 @@ direto dos estados iniciais
 --  where f ok state = let states = M.lookup state a
 --                         dfa s ok' = 
 --          in S.foldr dfa ok states
-{-
+
 reachableStates :: DFA -> S.Set (S.Set State)
 reachableStates a = S.fromList $
                        concat $
                        map (S.toList . dfaStateClojure a S.empty)
                            (S.toList $ initialStates a)
--}
+
 
 {-retorna o feixo transitivo de um estado-}
 dfaStateClojure :: DFA -> S.Set (S.Set State) -> S.Set State -> S.Set (S.Set State)
@@ -302,4 +302,4 @@ main = do
   putStrLn $ show $ dfaStateClojure' dfa S.empty (S.singleton $ InitialState 1)
 
   putStrLn "\n\n\n\n"
-  putStrLn $ show dfa
+  putStrLn $ show $ reachableStates dfa
