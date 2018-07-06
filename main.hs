@@ -182,6 +182,9 @@ makeNDFA m = M.map (mapFromTupleSet . S.fromList) .
 dfaTerminals :: DFA -> S.Set TerminalSymbol
 dfaTerminals =  S.fromList . concat . M.elems . M.map (M.keys)
 
+dfaStates :: DFA -> S.Set State
+dfaStates = S.unions . M.keys
+
 addErrorState :: DFA -> DFA
 addErrorState a = M.map h a
   where terminals = dfaTerminals a
@@ -222,6 +225,15 @@ determinize a = let stateSets = concat $ map M.elems $ M.elems a
 
   where f set = S.map fromJust $ S.filter isJust $ S.map aux set
         aux state = M.lookup state a
+
+
+--removeUnreachables :: DFA -> DFA
+removeUnreachables a = a
+  where initialStates = S.filter
+                        (\s -> case s of
+                            (InitialState n) -> True
+                            _ -> False)
+                        (dfaStates a)
 
 main :: IO ()
 main = do
