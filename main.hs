@@ -248,6 +248,10 @@ direto dos estados iniciais
 --  where f ok state = let states = M.lookup state a
 --                         dfa s ok' = 
 --          in S.foldr dfa ok states
+removeUnreachables :: DFA -> DFA
+removeUnreachables a = M.filterWithKey f a
+  where reachable = reachableStates a
+        f k v = k `S.member` reachable
 
 reachableStates :: DFA -> S.Set (S.Set State)
 reachableStates a = S.fromList $
@@ -289,17 +293,9 @@ main = do
   putStrLn "\nDFA below"
   putStrLn $ dfaJson dfa
 
+  putStrLn "\nDFA without unreachable states"
+  putStrLn $ dfaJson $ removeUnreachables dfa
+
   putStrLn "\nDFA with error states"
   putStrLn $ dfaJson $ addErrorState dfa
 
-  --putStrLn "\nREACHABLE STATES BELOW\n"
-  --putStrLn $ show $ reachableStates dfa
-
-  putStrLn "\nasdfadfasdfasdfasdf\n"
-  putStrLn $ show $ dfaStateClojure dfa S.empty (S.singleton $ InitialState 1)
-
-  putStrLn "\nTESTINGGGGGGGGGG\n"
-  putStrLn $ show $ dfaStateClojure' dfa S.empty (S.singleton $ InitialState 1)
-
-  putStrLn "\n\n\n\n"
-  putStrLn $ show $ reachableStates dfa
