@@ -172,7 +172,12 @@ dfaTerminals :: DFA -> S.Set TerminalSymbol
 dfaTerminals =  S.fromList . concat . M.elems . M.map (M.keys)
 
 addErrorState :: DFA -> DFA
-addErrorState a = a
+addErrorState a = M.map h a
+  where terminals = dfaTerminals a
+        h m = M.fromAscList . S.toList $ S.map f terminals
+          where f v
+                  | isJust $ M.lookup v m = (v, fromJust $ M.lookup v m)
+                  | otherwise = (v, S.fromList [ErrorState])
 
 hasEpsilonTransitions :: NDFA -> Bool
 hasEpsilonTransitions = M.foldr aux False
@@ -245,3 +250,6 @@ main = do
   let dfa  = determinize ndfa
   putStrLn "DFA below"
   putStrLn $ dfaJson dfa
+
+  putStrLn "\n\n\n DFA with error states"
+  putStrLn $ dfaJson $ addErrorState dfa
