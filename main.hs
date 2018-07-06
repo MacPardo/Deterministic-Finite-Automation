@@ -239,6 +239,10 @@ dfaIsStateInitial = any f . S.toList
   where f (InitialState _) = True
         f _ = False
 
+dfaIsStateFinal :: S.Set State -> Bool
+dfaIsStateFinal = any f . S.toList
+  where f (FinalState _) = True
+        f _ = False
 {-
 remove todos os estados que não pertencem ao feixo transitivo
 direto dos estados iniciais
@@ -269,7 +273,9 @@ dfaStateClojure a ok s = case directClojure >>= (\clj -> Just $ S.foldr f ok' cl
         directClojure = M.lookup s a >>= (\m -> Just $ (S.fromList . M.elems $ m) `S.difference` ok')
         f state acc = acc `S.union` (dfaStateClojure a acc state)
 
-dfaStateClojure' a ok s = M.lookup s a
+isStateProductive :: DFA -> S.Set State -> Bool
+isStateProductive a state = any dfaIsStateFinal . S.toList $ clj
+  where clj = dfaStateClojure a S.empty state
 
 main :: IO ()
 main = do
