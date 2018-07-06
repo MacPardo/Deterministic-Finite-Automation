@@ -168,6 +168,12 @@ makeNDFA m = M.map (mapFromTupleSet . S.fromList) .
         f key (Right b:[])               = (Epsilon, b)
         f _   _ = error "invalid rule in makeNDFA"
 
+dfaTerminals :: DFA -> S.Set TerminalSymbol
+dfaTerminals =  S.fromList . concat . M.elems . M.map (M.keys)
+
+addErrorState :: DFA -> DFA
+addErrorState a = a
+
 hasEpsilonTransitions :: NDFA -> Bool
 hasEpsilonTransitions = M.foldr aux False
   where aux _ True  = True
