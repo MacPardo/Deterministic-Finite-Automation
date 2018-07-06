@@ -219,13 +219,17 @@ mapOfSetsUnions a = foldr f M.empty a
                   where mRules = M.lookup k m
   
 determinize :: NDFA -> DFA
-determinize a = let stateSets = concat $ map M.elems $ M.elems a
+determinize a = let stateSets = (concat $ map M.elems $ M.elems a) ++ (ndfaInitialStatesSingletons a)
                     test = M.fromAscList $  map (\set -> (set, mapOfSetsUnions . S.toList . f $ set)) stateSets
   in test
 
   where f set = S.map fromJust $ S.filter isJust $ S.map aux set
         aux state = M.lookup state a
 
+ndfaInitialStatesSingletons :: NDFA -> [S.Set State]
+ndfaInitialStatesSingletons = map S.singleton . filter f . M.keys
+  where f (InitialState _) = True
+        f _ = False
 
 initialStates :: DFA -> S.Set (S.Set State)
 initialStates = S.fromList . filter dfaIsStateInitial . M.keys
@@ -244,12 +248,13 @@ direto dos estados iniciais
 --  where f ok state = let states = M.lookup state a
 --                         dfa s ok' = 
 --          in S.foldr dfa ok states
+{-
 reachableStates :: DFA -> S.Set (S.Set State)
 reachableStates a = S.fromList $
                        concat $
                        map (S.toList . dfaStateClojure a S.empty)
                            (S.toList $ initialStates a)
-
+-}
 
 {-retorna o feixo transitivo de um estado-}
 dfaStateClojure :: DFA -> S.Set (S.Set State) -> S.Set State -> S.Set (S.Set State)
@@ -259,6 +264,8 @@ dfaStateClojure a ok s = case directClojure >>= (\clj -> Just $ S.foldr f ok' cl
   where ok' = s `S.insert` ok
         directClojure = M.lookup s a >>= (\m -> Just $ (S.fromList . M.elems $ m) `S.difference` ok')
         f state acc = acc `S.union` (dfaStateClojure a acc state)
+
+dfaStateClojure' a ok s = M.lookup s a
 
 main :: IO ()
 main = do
@@ -284,3 +291,15 @@ main = do
 
   putStrLn "\nDFA with error states"
   putStrLn $ dfaJson $ addErrorState dfa
+
+  --putStrLn "\nREACHABLE STATES BELOW\n"
+  --putStrLn $ show $ reachableStates dfa
+
+  putStrLn "\nasdfadfasdfasdfasdf\n"
+  putStrLn $ show $ dfaStateClojure dfa S.empty (S.singleton $ InitialState 1)
+
+  putStrLn "\nTESTINGGGGGGGGGG\n"
+  putStrLn $ show $ dfaStateClojure' dfa S.empty (S.singleton $ InitialState 1)
+
+  putStrLn "\n\n\n\n"
+  putStrLn $ show dfa
