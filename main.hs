@@ -277,6 +277,11 @@ isStateProductive :: DFA -> S.Set State -> Bool
 isStateProductive a state = any dfaIsStateFinal . S.toList $ clj
   where clj = dfaStateClojure a S.empty state
 
+
+removeUnproductives :: DFA -> DFA
+removeUnproductives a = M.map (M.filter $ isStateProductive a) . M.filterWithKey isKeyProductive $ a
+  where isKeyProductive k v = isStateProductive a k
+
 main :: IO ()
 main = do
   args <- getArgs
@@ -299,9 +304,18 @@ main = do
   putStrLn "\nDFA below"
   putStrLn $ dfaJson dfa
 
+  let dfa2 = removeUnreachables dfa
+
   putStrLn "\nDFA without unreachable states"
-  putStrLn $ dfaJson $ removeUnreachables dfa
+  putStrLn $ dfaJson $ dfa2
+
+  let dfa3 = removeUnproductives dfa2
+
+  putStrLn "\nDFA without unproductive states"
+  putStrLn $ dfaJson $ dfa3
+
+  let dfa4 = addErrorState dfa3
 
   putStrLn "\nDFA with error states"
-  putStrLn $ dfaJson $ addErrorState dfa
+  putStrLn $ dfaJson $ dfa4
 
