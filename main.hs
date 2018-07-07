@@ -231,6 +231,25 @@ missingStates a = transitionStates `S.difference` lineStates
   where lineStates = S.fromList $ M.keys a
         transitionStates = S.fromList . concat . map (M.elems) . M.elems $ a
 
+haveStatesInCommon :: S.Set State -> S.Set State -> Bool
+haveStatesInCommon a b = not . S.null . S.intersection a $ b
+
+--getMissingStateMap :: DFA -> S.Set State -> M.Map TerminalSymbol (S.Set State)
+getMissingStateMap a state = map f terms
+  where terms = S.toList . dfaTerminals $ a
+        commonStates = filter (haveStatesInCommon state) . M.keys $ a
+        f t = (t, t)
+
+--addMissingStates :: DFA -> DFA
+--addMissingStates a
+--  | null missing = undefined
+--  | otherwise = map f missing
+--  where missing = S.toList . missingStates $ a
+--        terms = S.toList . dfaTerminals $ a
+--        f state = (state, map g terms)
+--          where g t = (t, transitionStates t)
+--                transitionStates tr = M.lookup state a >>= (M.lookup tr)
+
 ndfaInitialStatesSingletons :: NDFA -> [S.Set State]
 ndfaInitialStatesSingletons = map S.singleton . filter f . M.keys
   where f (InitialState _) = True
@@ -291,9 +310,7 @@ main :: IO ()
 main = do
   args <- getArgs
   let inputFile  = args !! 0
-  let outputFile = args !! 1
   putStrLn $ "input file: " ++ inputFile
-  putStrLn $ "output file: " ++ outputFile ++ "\n\n"
   inputText <- readFile inputFile
   let tokenDefinitions = filter (not . null) $ Split.splitOn "\n\n" inputText
   let tokenRules = mergeUniqueRules $ map (S.unions .
@@ -324,3 +341,7 @@ main = do
   putStrLn "\nDFA with error states"
   putStrLn $ dfaJson $ dfa4
 
+
+
+  putStrLn "\nMissing states below"
+  putStrLn $ show $ missingStates dfa
