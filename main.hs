@@ -16,6 +16,7 @@ type Rule = (NonTerminalSymbol, [Symbol])
 
 data State = State (String, Int, Bool)
            | InitialState Int
+           | UInitialState -- universal initial state
            | FinalState Int
            | ErrorState
            deriving (Eq, Ord)
@@ -27,7 +28,8 @@ instance Show TerminalSymbol where
 instance Show State where
   show ErrorState = "ERROR"
   show (FinalState n) = "'*" ++ (show n) ++ "'"
-  show (InitialState n) = "'$" ++ (show n) ++ "'"
+  show (InitialState n) = "'#" ++ (show n) ++ "'"
+  show UInitialState = "$"
   show (State (s, n, b)) = "'" ++ f ++ "(" ++ s ++ "," ++ (show n) ++ ")" ++ "'"
     where f | b         = "*"
             | otherwise = ""
@@ -130,7 +132,7 @@ tokenStringToRules s = S.fromList $ Ap.getZipList $
                    z (tail rules))
                  ++ [[last symbols]]
         symbols = map stringToSymbol $ separateSymbols s
-        rules = map show [1..]
+        rules = ["$"] ++ (map show [2..])
         z = Ap.ZipList
 
  
@@ -168,8 +170,28 @@ mapFromTupleSet ruleSet = S.foldr' f M.empty ruleSet
                                Just s  -> s `S.union` (S.singleton symbols)
                 ms = M.lookup state acc
 
+makeSingleInitialState :: NDFA -> NDFA
+makeSingleInitialState a = M.map (M.map $ S.map ini) . M.mapKeys ini $ a
+
+
+ini (InitialState _) = UInitialState
+ini a = a
+
+--initialRuleBodies :: M.Map State (S.Set [Either TerminalSymbol State]) -> S.Set [Either TerminalSymbol State]
+--initialRuleBodies = M.foldr S.union S.empty . M.filterWithKey (\k v -> isIni k)
+--  where isIni (InitialState _) = True
+--        isIni _ = False
+
+--initialRuleBodies :: M.Map State [(TerminalSymbol, State)] -> [(TerminalSymbol, State)]
+initialRuleBodies = concat . M.elems . M.filterWithKey (\k v -> isIni k)
+  where isIni (InitialState _) = True
+        isIni _ = False
+
 makeNDFA :: M.Map State (S.Set [Either TerminalSymbol State]) -> NDFA
 makeNDFA m = M.map (mapFromTupleSet . S.fromList) .
+             M.filterWithKey (\k v -> not . isIni $ k) .
+             (\m -> M.insert UInitialState (initialRuleBodies m) m) .
+             M.map (map aux) .
              M.mapWithKey ((\k l -> map (f k) l)) .
              M.map S.toList $
              m
@@ -178,6 +200,10 @@ makeNDFA m = M.map (mapFromTupleSet . S.fromList) .
         f key (Left a:Right b:[])        = (a      , b)
         f key (Right b:[])               = (Epsilon, b)
         f _   _ = error "invalid rule in makeNDFA"
+        aux (a, InitialState _) = (a, UInitialState)
+        aux a = a
+        isIni (InitialState _) = True
+        isIni _ = False
 
 dfaTerminals :: DFA -> S.Set TerminalSymbol
 dfaTerminals =  S.fromList . concat . M.elems . M.map (M.keys)
@@ -235,10 +261,30 @@ haveStatesInCommon :: S.Set State -> S.Set State -> Bool
 haveStatesInCommon a b = not . S.null . S.intersection a $ b
 
 --getMissingStateMap :: DFA -> S.Set State -> M.Map TerminalSymbol (S.Set State)
-getMissingStateMap a state = map f terms
+getMissingStateMap a state = M.fromAscList . map f $ terms
   where terms = S.toList . dfaTerminals $ a
         commonStates = filter (haveStatesInCommon state) . M.keys $ a
-        f t = (t, t)
+        f t = (t, commonTransitions)
+          where commonTransitions = S.unions . map fromJust . filter isJust . map trans $ commonStates
+                trans s = M.lookup s a >>=
+                          \m -> M.lookup t m
+
+
+getMissingStateMap' a state = commonStates --M.fromAscList . map f $ terms
+  where terms = S.toList . dfaTerminals $ a
+        commonStates = filter (haveStatesInCommon state) . M.keys $ a
+        f t = (t, commonTransitions)
+          where commonTransitions = S.unions . map fromJust . filter isJust . map trans $ commonStates
+                trans s = M.lookup s a >>= (M.lookup t)
+
+  
+addMissingStates :: DFA -> DFA
+addMissingStates a
+  | null missing = a
+  | otherwise = addMissingStates newDfa
+  where missing = S.toList . missingStates $ a
+        missingDfa = M.fromAscList . map (\s -> (s, getMissingStateMap a s)) $ missing
+        newDfa = missingDfa `M.union` a 
 
 --addMissingStates :: DFA -> DFA
 --addMissingStates a
@@ -326,7 +372,12 @@ main = do
   putStrLn "\nDFA below"
   putStrLn $ dfaJson dfa
 
-  let dfa2 = removeUnreachables dfa
+  let cdfa = addMissingStates dfa
+  putStrLn "Complete DFA below"
+  putStrLn $ dfaJson cdfa
+
+  --let dfa2 = removeUnreachables dfa
+  let dfa2 = dfa
 
   putStrLn "\nDFA without unreachable states"
   putStrLn $ dfaJson $ dfa2
@@ -338,10 +389,6 @@ main = do
 
   let dfa4 = addErrorState dfa3
 
-  putStrLn "\nDFA with error states"
-  putStrLn $ dfaJson $ dfa4
+  putStrLn "\nDFA with error states - Sem minificacao"
+  putStrLn $ dfaJson $ dfa2
 
-
-
-  putStrLn "\nMissing states below"
-  putStrLn $ show $ missingStates dfa
