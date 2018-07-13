@@ -309,11 +309,14 @@ removeUnreachables a = M.filterWithKey f a
   where reachable = reachableStates a
         f k v = k `S.member` reachable
 
+--reachableStates :: DFA -> S.Set (S.Set State)
+--reachableStates a = S.fromList $
+--                       concat $
+--                       map (S.toList . dfaStateClojure a S.empty)
+--                           (S.toList $ initialStates a)
+
 reachableStates :: DFA -> S.Set (S.Set State)
-reachableStates a = S.fromList $
-                       concat $
-                       map (S.toList . dfaStateClojure a S.empty)
-                           (S.toList $ initialStates a)
+reachableStates a = dfaStateClojure a S.empty (S.singleton UInitialState)
 
 
 {-retorna o feixo transitivo de um estado-}
@@ -354,19 +357,15 @@ main = do
   putStrLn "\nDFA below"
   putStrLn $ dfaJson dfa
 
-  --let dfa2 = removeUnreachables dfa
-  let dfa2 = dfa
-
   putStrLn "\nDFA without unreachable states"
-  putStrLn $ dfaJson $ dfa2
-
-  let dfa3 = removeUnproductives dfa2
+  putStrLn $ dfaJson $ removeUnreachables $ dfa
 
   putStrLn "\nDFA without unproductive states"
-  putStrLn $ dfaJson $ dfa3
+  putStrLn $ dfaJson $ removeUnproductives $ dfa
 
-  let dfa4 = addErrorState dfa3
+  putStrLn "\nDFA without unproductive and unreachable states"
+  putStrLn $ dfaJson $ removeUnproductives $ removeUnreachables $ dfa
 
-  putStrLn "\nDFA with error states - Sem minificacao"
-  putStrLn $ dfaJson $ dfa2
+  putStrLn "\nDFA with error states"
+  putStrLn $ dfaJson $ removeUnproductives $ removeUnreachables $ dfa
 
