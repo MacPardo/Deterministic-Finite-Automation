@@ -214,7 +214,7 @@ dfaStates = S.unions . M.keys
 addErrorState :: DFA -> DFA
 addErrorState a = M.map h a
   where terminals = dfaTerminals a
-        h m = M.fromAscList . S.toList $ S.map f terminals
+        h m = M.fromList . S.toList $ S.map f terminals
           where f v
                   | isJust $ M.lookup v m = (v, fromJust $ M.lookup v m)
                   | otherwise = (v, S.fromList [ErrorState])
@@ -246,7 +246,7 @@ mapOfSetsUnions a = foldr f M.empty a
   
 determinize :: NDFA -> DFA
 determinize a = let stateSets = (concat $ map M.elems $ M.elems a) ++ (ndfaInitialStatesSingletons a)
-                    test = M.fromAscList $  map (\set -> (set, mapOfSetsUnions . S.toList . f $ set)) stateSets
+                    test = M.fromList $  map (\set -> (set, mapOfSetsUnions . S.toList . f $ set)) stateSets
   in test
 
   where f set = S.map fromJust $ S.filter isJust $ S.map aux set
@@ -260,8 +260,20 @@ missingStates a = transitionStates `S.difference` lineStates
 haveStatesInCommon :: S.Set State -> S.Set State -> Bool
 haveStatesInCommon a b = not . S.null . S.intersection a $ b
 
---getMissingStateMap :: DFA -> S.Set State -> M.Map TerminalSymbol (S.Set State)
-getMissingStateMap a state = M.fromAscList . map f $ terms
+testCommonStates :: DFA -> S.Set State -> [S.Set State]
+testCommonStates a state = filter (haveStatesInCommon state) . M.keys $ a
+
+--testCommonTransitions :: DFA -> 
+--testCommonTransitions a state t = S.unions . map fromJust . filter isJust . map trans $ testCommonTransitions a state
+--  where trans s = M.lookup s a >>=
+--                  \m -> M.lookup t m
+
+--testTrans :: DFA -> TerminalSymbol -> S.Set State -> Maybe (S.Set State)
+testTrans a t s = M.lookup s a >>=
+                  \m -> M.lookup t m
+
+getMissingStateMap :: DFA -> S.Set State -> M.Map TerminalSymbol (S.Set State)
+getMissingStateMap a state = M.fromList . map f $ terms
   where terms = S.toList . dfaTerminals $ a
         commonStates = filter (haveStatesInCommon state) . M.keys $ a
         f t = (t, commonTransitions)
@@ -270,7 +282,7 @@ getMissingStateMap a state = M.fromAscList . map f $ terms
                           \m -> M.lookup t m
 
 
-getMissingStateMap' a state = commonStates --M.fromAscList . map f $ terms
+getMissingStateMap' a state = commonStates --M.fromList . map f $ terms
   where terms = S.toList . dfaTerminals $ a
         commonStates = filter (haveStatesInCommon state) . M.keys $ a
         f t = (t, commonTransitions)
@@ -283,22 +295,14 @@ addMissingStates a
   | null missing = a
   | otherwise = addMissingStates newDfa
   where missing = S.toList . missingStates $ a
-        missingDfa = M.fromAscList . map (\s -> (s, getMissingStateMap a s)) $ missing
+        missingDfa = M.fromList . map (\s -> (s, getMissingStateMap a s)) $ missing
         newDfa = missingDfa `M.union` a 
 
---addMissingStates :: DFA -> DFA
---addMissingStates a
---  | null missing = undefined
---  | otherwise = map f missing
---  where missing = S.toList . missingStates $ a
---        terms = S.toList . dfaTerminals $ a
---        f state = (state, map g terms)
---          where g t = (t, transitionStates t)
---                transitionStates tr = M.lookup state a >>= (M.lookup tr)
 
 ndfaInitialStatesSingletons :: NDFA -> [S.Set State]
 ndfaInitialStatesSingletons = map S.singleton . filter f . M.keys
   where f (InitialState _) = True
+        f UInitialState = True
         f _ = False
 
 initialStates :: DFA -> S.Set (S.Set State)
@@ -391,4 +395,54 @@ main = do
 
   putStrLn "\nDFA with error states - Sem minificacao"
   putStrLn $ dfaJson $ dfa2
+
+
+  putStrLn "\nDFA missing states:"
+  putStrLn . show . missingStates $ dfa
+
+  let mis = missingStates dfa
+  let cmmn = S.map (testCommonStates dfa) mis
+
+  putStrLn "\ncommon states:"
+  putStrLn . show $ cmmn
+
+
+  --let ttr = S.map (map (testTrans dfa (TerminalSymbol 'a')) . map S.fromList . S.toList) $ cmmn
+  let testState = S.fromList [(State ("3", 1, False))]
+  let ttr = testTrans dfa (TerminalSymbol 'a') testState 
+
+  putStrLn "\ntestState"
+  putStrLn . show $ testState
+
+  putStrLn . show $ M.lookup testState dfa
+
+  putStrLn "\ntrans:"
+  putStrLn . show $ ttr
+
+  let keys = M.keys dfa
+  let terms = dfaTerminals dfa
+  putStrLn "\n\nkeys"
+  forM_ keys $ \key -> do
+    putStrLn "key:"
+    putStrLn . show $ key
+    putStrLn "Lookup:"
+    putStrLn . show $ M.lookup key dfa
+    --putStrLn . show (key `elem` (M.keys dfa))
+    putStrLn . show . M.keys $ dfa
+    putStrLn "trans:"
+    forM_ terms $ \term -> do
+      putStr "transition for "
+      putStr . show $ term
+      putStr " "
+      putStrLn . show $ testTrans dfa term key
+      putStrLn . show $ M.lookup key dfa
+      putStrLn . dfaJson $ dfa
+    putStrLn ""
+
+  --putStrLn . show $ S.fromList [(State ("3", 1, False))]
+--  let ttr = S.map (testTrans dfa (TerminalSymbol 'a')) .
+--            S.map S.fromList $
+--            cmmn
+--  putStrLn . show $ ttr
+  --putStrLn . show . S.map (testTrans dfa (TerminalSymbol 'a')) . missingStates $ dfa
 
