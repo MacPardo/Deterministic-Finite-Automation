@@ -177,12 +177,7 @@ makeSingleInitialState a = M.map (M.map $ S.map ini) . M.mapKeys ini $ a
 ini (InitialState _) = UInitialState
 ini a = a
 
---initialRuleBodies :: M.Map State (S.Set [Either TerminalSymbol State]) -> S.Set [Either TerminalSymbol State]
---initialRuleBodies = M.foldr S.union S.empty . M.filterWithKey (\k v -> isIni k)
---  where isIni (InitialState _) = True
---        isIni _ = False
-
---initialRuleBodies :: M.Map State [(TerminalSymbol, State)] -> [(TerminalSymbol, State)]
+initialRuleBodies :: M.Map State [(TerminalSymbol, State)] -> [(TerminalSymbol, State)]
 initialRuleBodies = concat . M.elems . M.filterWithKey (\k v -> isIni k)
   where isIni (InitialState _) = True
         isIni _ = False
@@ -260,18 +255,6 @@ missingStates a = transitionStates `S.difference` lineStates
 haveStatesInCommon :: S.Set State -> S.Set State -> Bool
 haveStatesInCommon a b = not . S.null . S.intersection a $ b
 
-testCommonStates :: DFA -> S.Set State -> [S.Set State]
-testCommonStates a state = filter (haveStatesInCommon state) . M.keys $ a
-
---testCommonTransitions :: DFA -> 
---testCommonTransitions a state t = S.unions . map fromJust . filter isJust . map trans $ testCommonTransitions a state
---  where trans s = M.lookup s a >>=
---                  \m -> M.lookup t m
-
---testTrans :: DFA -> TerminalSymbol -> S.Set State -> Maybe (S.Set State)
-testTrans a t s = M.lookup s a >>=
-                  \m -> M.lookup t m
-
 getMissingStateMap :: DFA -> S.Set State -> M.Map TerminalSymbol (S.Set State)
 getMissingStateMap a state = M.fromList . map f $ terms
   where terms = S.toList . dfaTerminals $ a
@@ -321,11 +304,6 @@ dfaIsStateFinal = any f . S.toList
 remove todos os estados que não pertencem ao feixo transitivo
 direto dos estados iniciais
 -}
---removeUnreachables :: DFA -> DFA
---removeUnreachables a = S.map (f S.empty) (initialStates a)
---  where f ok state = let states = M.lookup state a
---                         dfa s ok' = 
---          in S.foldr dfa ok states
 removeUnreachables :: DFA -> DFA
 removeUnreachables a = M.filterWithKey f a
   where reachable = reachableStates a
@@ -372,13 +350,9 @@ main = do
   putStrLn "NDFA below"
   putStrLn $ ndfaJson ndfa
 
-  let dfa  = determinize ndfa
+  let dfa  = addMissingStates . determinize $ ndfa
   putStrLn "\nDFA below"
   putStrLn $ dfaJson dfa
-
-  let cdfa = addMissingStates dfa
-  putStrLn "Complete DFA below"
-  putStrLn $ dfaJson cdfa
 
   --let dfa2 = removeUnreachables dfa
   let dfa2 = dfa
@@ -395,54 +369,4 @@ main = do
 
   putStrLn "\nDFA with error states - Sem minificacao"
   putStrLn $ dfaJson $ dfa2
-
-
-  putStrLn "\nDFA missing states:"
-  putStrLn . show . missingStates $ dfa
-
-  let mis = missingStates dfa
-  let cmmn = S.map (testCommonStates dfa) mis
-
-  putStrLn "\ncommon states:"
-  putStrLn . show $ cmmn
-
-
-  --let ttr = S.map (map (testTrans dfa (TerminalSymbol 'a')) . map S.fromList . S.toList) $ cmmn
-  let testState = S.fromList [(State ("3", 1, False))]
-  let ttr = testTrans dfa (TerminalSymbol 'a') testState 
-
-  putStrLn "\ntestState"
-  putStrLn . show $ testState
-
-  putStrLn . show $ M.lookup testState dfa
-
-  putStrLn "\ntrans:"
-  putStrLn . show $ ttr
-
-  let keys = M.keys dfa
-  let terms = dfaTerminals dfa
-  putStrLn "\n\nkeys"
-  forM_ keys $ \key -> do
-    putStrLn "key:"
-    putStrLn . show $ key
-    putStrLn "Lookup:"
-    putStrLn . show $ M.lookup key dfa
-    --putStrLn . show (key `elem` (M.keys dfa))
-    putStrLn . show . M.keys $ dfa
-    putStrLn "trans:"
-    forM_ terms $ \term -> do
-      putStr "transition for "
-      putStr . show $ term
-      putStr " "
-      putStrLn . show $ testTrans dfa term key
-      putStrLn . show $ M.lookup key dfa
-      putStrLn . dfaJson $ dfa
-    putStrLn ""
-
-  --putStrLn . show $ S.fromList [(State ("3", 1, False))]
---  let ttr = S.map (testTrans dfa (TerminalSymbol 'a')) .
---            S.map S.fromList $
---            cmmn
---  putStrLn . show $ ttr
-  --putStrLn . show . S.map (testTrans dfa (TerminalSymbol 'a')) . missingStates $ dfa
 
